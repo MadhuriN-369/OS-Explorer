@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Allocation Algorithms — OS Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    ::-webkit-scrollbar {
+    display: none;
+}
+    :root {
+      --bg:            #0f1115;
+      --bg2:           #121212;
+      --surface:       #1a1d23;
+      --border:        rgba(62, 166, 255, 0.12);
+      --border-bright: rgba(62, 166, 255, 0.35);
+      --accent:        #3ea6ff;
+      --accent2:       #00c2ff;
+      --purple:        #a78bfa;
+      --text:          #e6e6e6;
+      --muted:         #5a6472;
+      --dim:           #272b34;
+      --mono:  'IBM Plex Mono', monospace;
+      --sans:  'IBM Plex Sans', sans-serif;
+      --display: 'Bebas Neue', sans-serif;
+
+      /* Process palette */
+      --p1: rgba(62,166,255,0.5);
+      --p2: rgba(167,139,250,0.5);
+      --p3: rgba(0,194,255,0.5);
+      --p4: rgba(245,166,35,0.5);
+      --p5: rgba(52,211,153,0.5);
+
+      --p1b: rgba(62,166,255,0.9);
+      --p2b: rgba(167,139,250,0.9);
+      --p3b: rgba(0,194,255,0.9);
+      --p4b: rgba(245,166,35,0.9);
+      --p5b: rgba(52,211,153,0.9);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(62,166,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(62,166,255,0.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none; z-index: 0;
+    }
+
+    .container {
+      max-width: 1280px; margin: 0 auto;
+      padding: 0 32px; position: relative; z-index: 1;
+    }
+
+    /* NAVBAR */
+    .navbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 24px 0; border-bottom: 1px solid var(--border);
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px;
+      border: 1.5px solid var(--accent); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent);
+    }
+    .logo { font-family: var(--display); font-size: 24px; letter-spacing: 2px; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+
+    nav { display: flex; align-items: center; gap: 8px; }
+    nav a {
+      color: var(--muted); text-decoration: none;
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 8px 16px; border: 1px solid transparent; border-radius: 4px;
+      transition: all 0.2s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--accent);
+      border-color: var(--border-bright);
+      background: rgba(62,166,255,0.05);
+    }
+
+    /* PAGE HEADER */
+    .page-header {
+      padding: 50px 0 36px;
+      animation: fadeUp 0.6s ease both;
+    }
+    .breadcrumb {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--muted); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .breadcrumb a { color: var(--accent); text-decoration: none; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb span { color: var(--dim); }
+
+    .page-header h1 {
+      font-family: var(--display);
+      font-size: 52px; line-height: 0.95;
+      letter-spacing: 3px; color: var(--text); margin-bottom: 10px;
+    }
+    .page-header h1 .accent { color: var(--accent); }
+    .page-header p {
+      font-family: var(--sans); font-size: 13px;
+      color: var(--muted); line-height: 1.7;
+    }
+
+    hr.divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+    /* MAIN LAYOUT */
+    .sim-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 48px 0 80px;
+      animation: fadeUp 0.5s ease 0.15s both;
+    }
+
+    /* CONTROL PANEL */
+    .control-panel {
+      background: var(--bg2);
+      padding: 28px;
+      display: flex; flex-direction: column; gap: 0;
+    }
+
+    .panel-section {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-section:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .panel-label {
+      font-family: var(--mono); font-size: 9px; color: var(--muted);
+      letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 16px;
+    }
+
+    .field-label {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--text); margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    input[type="number"], input[type="text"], input[type="range"], select {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface);
+      font-family: var(--mono); font-size: 13px;
+      color: var(--text);
+      transition: border-color 0.2s;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: var(--border-bright);
+      background: rgba(62,166,255,0.04);
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+
+    select {
+      appearance: none;
+      padding-right: 36px;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233ea6ff' stroke-width='2'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 18px;
+      background-color: var(--surface);
+      cursor: pointer;
+    }
+
+    option {
+      background: #1a1d23;
+      color: #e6e6e6;
+      padding: 8px 12px;
+      font-family: var(--mono);
+    }
+
+    option:hover,
+    option:focus {
+      background: #3ea6ff;
+      color: #0f1115;
+    }
+
+    option:checked {
+      background: #3ea6ff;
+      color: #0f1115;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      width: 100%; justify-content: center;
+      background: rgba(62,166,255,0.08); border: 1px solid var(--border);
+      border-radius: 4px; padding: 10px 16px;
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); cursor: pointer; transition: all 0.2s;
+    }
+    .btn:hover {
+      background: rgba(62,166,255,0.15);
+      border-color: var(--border-bright);
+    }
+    .btn-primary {
+      background: var(--accent); color: #0f1115;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+    .btn-primary:hover {
+      background: var(--accent2); border-color: var(--accent2);
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 1px; background: var(--border);
+      border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    }
+    .stat-box {
+      background: var(--surface); padding: 12px 10px; text-align: center;
+    }
+    .stat-box-label {
+      font-family: var(--mono); font-size: 8px; color: var(--muted);
+      letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px;
+    }
+    .stat-box-val {
+      font-family: var(--display); font-size: 20px;
+      letter-spacing: 1px; color: var(--accent);
+    }
+
+    /* VISUALIZATION PANEL */
+    .viz-panel {
+      background: var(--bg2);
+      padding: 28px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    .viz-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+    }
+    .viz-title {
+      font-family: var(--mono); font-size: 11px; color: var(--muted);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .viz-badge {
+      font-family: var(--mono); font-size: 9px; color: var(--accent);
+      letter-spacing: 0.1em; text-transform: uppercase;
+    }
+
+    /* Visualization blocks */
+    .block-container {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 20px;
+      background: var(--surface);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      min-height: 100px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .block {
+      display: flex;
+      align-items: center; justify-content: center;
+      padding: 10px;
+      background: var(--dim);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      min-width: 80px;
+      white-space: nowrap;
+    }
+
+    .block.allocated {
+      background: var(--p1);
+      border-color: var(--p1b);
+      color: #fff;
+    }
+
+    .block.process-color-2 { background: var(--p2); border-color: var(--p2b); color: #fff; }
+    .block.process-color-3 { background: var(--p3); border-color: var(--p3b); color: #000; }
+    .block.process-color-4 { background: var(--p4); border-color: var(--p4b); color: #000; }
+    .block.process-color-5 { background: var(--p5); border-color: var(--p5b); color: #000; }
+    .block.process-color-1 { background: var(--p1); border-color: var(--p1b); color: #fff; }
+
+    /* Logging */
+    .log-wrap {
+      display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 6px; overflow: hidden; height: 200px;
+    }
+    .log-header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px;
+      background: var(--dim); border-bottom: 1px solid var(--border);
+    }
+    .terminal-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+    }
+    .terminal-dot.red { background: #ff5555; }
+    .terminal-dot.yellow { background: #f1fa8c; }
+    .terminal-dot.green { background: #50fa7b; }
+    .log-title {
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+    #allocation-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+      font-size: 11px;
+      line-height: 1.6;
+      scrollbar-width: none;
+    }
+    #allocation-log p {
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    #allocation-log p:last-child { margin-bottom: 0; }
+
+    /* Tabs */
+    .tab-container {
+      margin-bottom: 48px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: var(--accent);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeUp 0.3s ease;
+    }
+
+    /* Algorithm description */
+    .algo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1px;
+      background: var(--border);
+      margin-bottom: 48px;
+    }
+
+    .algo-card {
+      background: var(--bg2);
+      padding: 24px;
+      border: 1px solid var(--border);
+    }
+
+    .algo-card h3 {
+      font-family: var(--display);
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    .algo-card p {
+      font-family: var(--sans);
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 12px;
+    }
+
+    .algo-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .algo-card li {
+      font-family: var(--sans);
+      font-size: 11px;
+      color: var(--muted);
+      padding: 6px 0;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .algo-card li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+
+    /* Algorithm menu */
+    .algo-menu {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .algo-menu button {
+      padding: 12px 16px;
+      background: rgba(62,166,255,0.08);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .algo-menu button:hover {
+      background: rgba(62,166,255,0.15);
+      border-color: var(--border-bright);
+    }
+
+    .algo-menu button.active {
+      background: var(--accent);
+      color: #0f1115;
+      border-color: var(--accent);
+    }
+
+    /* Memory visualization */
+    .memory-viz {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+
+    .memory-viz h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .animation-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 32px;
+    }
+
+    .animation-controls button {
+      padding: 10px 20px;
+      background: rgba(62,166,255,0.08);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .animation-controls button:hover {
+      background: rgba(62,166,255,0.15);
+      border-color: var(--border-bright);
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .speed-control label {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .speed-control input[type="range"] {
+      width: 100px;
+      height: 4px;
+      margin: 0;
+      padding: 0;
+    }
+
+    .speed-control span {
+      font-size: 10px;
+      color: var(--accent);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    /* Tables */
+    .table-wrapper {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+
+    .table-wrapper h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    table thead {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    table th {
+      padding: 10px 12px;
+      text-align: left;
+      color: var(--muted);
+      font-family: var(--mono);
+      letter-spacing: 0.05em;
+      font-weight: 500;
+    }
+
+    table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    table tbody tr:hover {
+      background: var(--surface);
+    }
+
+    /* Footer */
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 32px 0;
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-left: 24px;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Animations */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .sim-layout {
+        grid-template-columns: 1fr;
+      }
+      .page-header h1 { font-size: 38px; }
+      .algo-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    @media (max-width: 600px) {
+      .container { padding: 0 16px; }
+      .page-header h1 { font-size: 28px; }
+      .tabs { overflow-x: auto; }
+      .animation-controls {
+        flex-direction: column;
+      }
+      .speed-control {
+        margin-left: 0;
+        margin-top: 8px;
+      }
+      footer {
+        flex-direction: column;
+        gap: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header class="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <a href="../index.html" class="logo">OS <span>EXPLORER</span></a>
+    </div>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../about.html">About</a>
+    </nav>
+  </header>
+
+  <section class="page-header">
+    <div class="breadcrumb">
+      <a href="../index.html">Home</a>
+      <span>/</span>
+      <a href="#">Memory Management</a>
+      <span>/</span>
+      <span>Allocation Algorithms</span>
+    </div>
+    <h1>MEMORY <span class="accent">ALLOCATION</span></h1>
+    <p>Explore First Fit, Best Fit, Worst Fit, Next Fit and more — dynamic memory allocation strategies with visualization.</p>
+  </section>
+
+  <hr class="divider">
+
+  <div class="tab-container">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('overview')">Overview</button>
+      <button class="tab" onclick="switchTab('simulator')">Simulator</button>
+    </div>
+
+    <!-- OVERVIEW TAB -->
+    <div id="overview-tab" class="tab-content active">
+      <div class="algo-grid">
+        <div class="algo-card">
+          <h3>First Fit</h3>
+          <p>Allocates process to the first available block that fits.</p>
+          <ul>
+            <li>Fast allocation</li>
+            <li>Simple implementation</li>
+            <li>May create fragmentation</li>
+          </ul>
+        </div>
+
+        <div class="algo-card">
+          <h3>Best Fit</h3>
+          <p>Allocates process to the smallest block that fits.</p>
+          <ul>
+            <li>Reduces fragmentation</li>
+            <li>Searches all blocks</li>
+            <li>Slower than First Fit</li>
+          </ul>
+        </div>
+
+        <div class="algo-card">
+          <h3>Worst Fit</h3>
+          <p>Allocates process to the largest available block.</p>
+          <ul>
+            <li>Leaves larger free spaces</li>
+            <li>Searches all blocks</li>
+            <li>Least commonly used</li>
+          </ul>
+        </div>
+
+        <div class="algo-card">
+          <h3>Next Fit</h3>
+          <p>Allocates from position of last allocation.</p>
+          <ul>
+            <li>Similar to First Fit</li>
+            <li>Avoids repeated searching</li>
+            <li>Better performance</li>
+          </ul>
+        </div>
+
+        <div class="algo-card">
+          <h3>Weighted Best Fit</h3>
+          <p>Considers multiple allocation factors.</p>
+          <ul>
+            <li>Flexible allocation</li>
+            <li>Complex scoring system</li>
+            <li>Optimized for specific patterns</li>
+          </ul>
+        </div>
+
+        <div class="algo-card">
+          <h3>Size-Ordered First Fit</h3>
+          <p>Uses size-based ordering for faster allocation.</p>
+          <ul>
+            <li>Faster than standard Best Fit</li>
+            <li>Reduces search time</li>
+            <li>Maintains size-based ordering</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- SIMULATOR TAB -->
+    <div id="simulator-tab" class="tab-content">
+
+      <div class="sim-layout">
+        <!-- CONTROL PANEL -->
+        <div class="control-panel">
+
+          <div class="panel-section">
+            <div class="panel-label">Step 1 · Setup</div>
+            <div class="field-label">Number of Blocks</div>
+            <input type="number" id="numBlocks" min="1" max="10" value="5">
+            <div class="field-label">Number of Processes</div>
+            <input type="number" id="numProcesses" min="1" max="10" value="3">
+            <button onclick="generateRandomInputs()" class="btn btn-primary">Generate Inputs</button>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-label">Step 2 · Select Algorithm</div>
+            <div class="field-label">Algorithm</div>
+            <select id="algorithmSelect" onchange="selectAlgorithm(this.value)">
+              <option value="">Choose algorithm...</option>
+              <option value="first">First Fit</option>
+              <option value="best">Best Fit</option>
+              <option value="worst">Worst Fit</option>
+              <option value="next">Next Fit</option>
+              <option value="weighted">Weighted Best Fit</option>
+              <option value="size-ordered">Size-Ordered First Fit</option>
+            </select>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-label">Step 3 · Simulate</div>
+            <button onclick="startSimulation()" id="startButton" class="btn btn-primary" style="margin-bottom: 8px;">Start Simulation</button>
+            <button onclick="stepThroughAllocation()" id="stepButton" class="btn" style="margin-bottom: 8px;">Next Step</button>
+            <button onclick="resetVisualization()" id="resetButton" class="btn">Reset</button>
+          </div>
+
+        </div>
+
+        <!-- VISUALIZATION PANEL -->
+        <div class="viz-panel">
+
+          <div class="viz-header">
+            <span class="viz-title">Memory Allocation</span>
+            <span class="viz-badge" id="selectedAlgo">Select Algorithm</span>
+          </div>
+
+          <div class="memory-viz">
+            <h3>Process Sizes</h3>
+            <div class="block-container" id="processBlocks"></div>
+          </div>
+
+          <div class="memory-viz">
+            <h3>Memory Blocks</h3>
+            <div class="block-container" id="memoryVisualization"></div>
+          </div>
+
+          <div class="log-wrap">
+            <div class="log-header">
+              <div class="terminal-dot red"></div>
+              <div class="terminal-dot yellow"></div>
+              <div class="terminal-dot green"></div>
+              <span class="log-title">allocation-log ~ simulator</span>
+            </div>
+            <div id="allocation-log"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- STATS & TABLES -->
+      <div style="margin-top: 32px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1px; background: var(--border); margin-bottom: 32px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+          <div style="background: var(--surface); padding: 16px; text-align: center;">
+            <div style="font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;">Total Memory</div>
+            <div style="font-family: var(--display); font-size: 24px; color: var(--accent); letter-spacing: 1px;" id="totalMemory">—</div>
+          </div>
+          <div style="background: var(--surface); padding: 16px; text-align: center;">
+            <div style="font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;">Allocated</div>
+            <div style="font-family: var(--display); font-size: 24px; color: var(--accent); letter-spacing: 1px;" id="allocatedMemory">—</div>
+          </div>
+          <div style="background: var(--surface); padding: 16px; text-align: center;">
+            <div style="font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;">Free</div>
+            <div style="font-family: var(--display); font-size: 24px; color: var(--accent); letter-spacing: 1px;" id="freeMemory">—</div>
+          </div>
+        </div>
+
+        <div class="table-wrapper">
+          <h3>Memory Block Status</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Size</th>
+                <th>Allocated To</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="allocationTable"></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrapper">
+          <h3>Process Status</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Process</th>
+                <th>Size</th>
+                <th>Status</th>
+                <th>Allocated Block</th>
+              </tr>
+            </thead>
+            <tbody id="processTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <div>OS Explorer · Memory Allocation</div>
+    <div>
+      <a href="../index.html">Home</a>
+      <a href="#">Memory</a>
+      <a href="#">MFT</a>
+    </div>
+  </footer>
+
+</div>
+
+<script src="memory-allocation.js"></script>
+<script>
+  function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+    
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.classList.remove('active');
+    });
+    event.target.classList.add('active');
+  }
+</script>
+</body>
+</html>
