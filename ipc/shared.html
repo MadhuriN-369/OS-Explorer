@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shared Memory Simulation — OS Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg:            #0d1017;
+      --bg2:           #111520;
+      --surface:       #161b27;
+      --border:        rgba(82, 170, 255, 0.18);
+      --border-bright: rgba(82, 170, 255, 0.45);
+      --accent:        #60b8ff;
+      --accent-dim:    rgba(96, 184, 255, 0.15);
+      --green:         #68d391;
+      --green-dim:     rgba(104,211,145,0.1);
+      --text:          #eef2f7;
+      --muted:         #8fa4bc;
+      --mono:  'IBM Plex Mono', monospace;
+      --sans:  'IBM Plex Sans', sans-serif;
+      --display: 'Bebas Neue', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--mono); min-height: 100vh; overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(96,184,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96,184,255,0.06) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+
+    .navbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 24px 32px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: rgba(13,16,23,0.92);
+      backdrop-filter: blur(12px); z-index: 100;
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px; border: 1.5px solid var(--accent);
+      border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      color: var(--accent); background: var(--accent-dim);
+    }
+    .logo { font-family: var(--display); font-size: 24px; letter-spacing: 2px; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+    nav { display: flex; gap: 8px; }
+    nav a {
+      color: var(--muted); text-decoration: none; font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 8px 16px; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s;
+    }
+    nav a:hover { color: var(--accent); border-color: var(--border-bright); background: var(--accent-dim); }
+
+    .page-header {
+      padding: 60px 32px 40px; border-bottom: 1px solid var(--border);
+      margin-bottom: 48px; position: relative; z-index: 1; animation: fadeUp 0.6s ease both;
+    }
+    .page-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green-dim); border: 1px solid rgba(104,211,145,0.25);
+      border-radius: 4px; padding: 6px 14px; font-family: var(--mono);
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 24px;
+    }
+    .page-header h1 { font-family: var(--display); font-size: 64px; letter-spacing: 4px; margin-bottom: 16px; line-height: 1; }
+    .page-header h1 span { color: var(--accent); }
+    .page-header p { font-family: var(--sans); color: var(--muted); font-size: 14px; max-width: 600px; line-height: 1.8; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 0 32px 80px; position: relative; z-index: 1; }
+
+    /* EXPLANATION */
+    .explanation {
+      background: var(--green-dim); border: 1px solid rgba(104,211,145,0.2);
+      border-left: 3px solid var(--green); border-radius: 8px;
+      padding: 20px 24px; margin-bottom: 32px;
+    }
+    .explanation h3 { font-family: var(--display); font-size: 20px; letter-spacing: 1px; color: var(--green); margin-bottom: 10px; }
+    .explanation p { font-family: var(--sans); font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 8px; }
+    .explanation ul { padding-left: 18px; }
+    .explanation li { font-family: var(--sans); font-size: 13px; color: var(--muted); margin: 4px 0; line-height: 1.6; }
+
+    /* MEMORY VISUALIZATION */
+    .mem-visual {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin: 36px 0;
+    }
+    .mem-proc {
+      width: 120px; height: 120px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 4px; border: 2px solid;
+    }
+    .mem-proc-a { background: rgba(255,107,107,0.12); border-color: rgba(255,107,107,0.4); }
+    .mem-proc-b { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.4); }
+    .mem-proc-name { font-family: var(--display); font-size: 20px; letter-spacing: 1px; }
+    .mem-proc-a .mem-proc-name { color: #ff7b7b; }
+    .mem-proc-b .mem-proc-name { color: #a78bfa; }
+    .mem-proc-sub { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 0.08em; }
+
+    .mem-connector {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .mem-conn-line { width: 60px; height: 2px; background: var(--border-bright); }
+    .mem-conn-arrow { font-family: var(--mono); font-size: 10px; color: var(--accent); }
+
+    .mem-region {
+      width: 200px; min-height: 100px; background: var(--surface);
+      border: 1px solid var(--border-bright); border-radius: 8px;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 16px;
+      transition: box-shadow 0.4s ease; text-align: center;
+    }
+    .mem-region-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .mem-region-data { font-family: var(--mono); font-size: 13px; color: var(--accent); min-height: 20px; word-break: break-all; }
+    .mem-region.flash { box-shadow: 0 0 24px rgba(96,184,255,0.5); border-color: var(--border-bright); }
+
+    /* PROCESS PANELS */
+    .process-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 32px; }
+    .process-panel {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 24px;
+    }
+    .process-panel.panel-a { border-top: 2px solid #ff7b7b; }
+    .process-panel.panel-b { border-top: 2px solid #a78bfa; }
+    .process-panel h2 { font-family: var(--display); font-size: 26px; letter-spacing: 2px; margin-bottom: 16px; }
+    .panel-a h2 { color: #ff7b7b; }
+    .panel-b h2 { color: #a78bfa; }
+
+    input[type="text"] {
+      width: 100%; padding: 10px 14px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;
+      font-family: var(--mono); font-size: 12px; color: var(--text); outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]::placeholder { color: var(--muted); }
+    input[type="text"]:focus { border-color: var(--border-bright); }
+
+    .btn-write {
+      width: 100%; padding: 10px; background: var(--accent); color: var(--bg);
+      border: none; border-radius: 6px; font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+      font-weight: 700; transition: all 0.2s;
+    }
+    .btn-write:hover { background: #80caff; transform: translateY(-1px); }
+    .btn-read {
+      width: 100%; padding: 10px; background: transparent; color: #a78bfa;
+      border: 1px solid rgba(167,139,250,0.4); border-radius: 6px; font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+      font-weight: 700; transition: all 0.2s;
+    }
+    .btn-read:hover { background: rgba(167,139,250,0.12); transform: translateY(-1px); }
+
+    /* READ LOG */
+    .read-log { margin-top: 16px; }
+    .read-entry {
+      background: var(--surface); border: 1px solid var(--border);
+      border-left: 2px solid #a78bfa; border-radius: 6px;
+      padding: 10px 14px; margin-bottom: 8px;
+      animation: fadeUp 0.3s ease both;
+    }
+    .read-entry-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+    .read-entry-data { font-family: var(--sans); font-size: 13px; color: var(--text); }
+
+    /* FOOTER NAV */
+    .footer-nav { display: flex; justify-content: space-between; margin-top: 40px; }
+    .footer-nav a {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px;
+      background: var(--bg2); color: var(--accent); text-decoration: none;
+      border: 1px solid var(--border); border-radius: 6px; font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.08em; transition: all 0.2s;
+    }
+    .footer-nav a:hover { background: var(--accent-dim); border-color: var(--border-bright); }
+
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 32px;
+      display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 1;
+    }
+    .footer-left { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .footer-right { display: flex; gap: 24px; }
+    .footer-right a { font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .footer-right a:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .process-grid { grid-template-columns: 1fr; }
+      .page-header h1 { font-size: 44px; }
+      main { padding: 0 16px 60px; }
+      .navbar { padding: 16px; }
+      .mem-visual { flex-direction: column; }
+      .mem-connector { flex-direction: row; }
+      .mem-conn-line { width: 2px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <a href="../index.html" class="logo">OS <span>EXPLORER</span></a>
+    </div>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="ipc.html">IPC</a>
+    </nav>
+  </header>
+
+  <div class="page-header">
+    <div class="page-tag">
+      <i class="fas fa-memory"></i>&nbsp; IPC Simulation
+    </div>
+    <h1>IPC THROUGH <span>SHARED MEMORY</span></h1>
+    <p>The fastest IPC method — processes communicate by directly reading and writing to a common memory region, with no kernel involvement per transfer.</p>
+  </div>
+
+  <main>
+    <div class="explanation">
+      <h3><i class="fas fa-info-circle"></i> How Shared Memory Works</h3>
+      <p>Shared memory is one of the fastest IPC mechanisms because processes can directly access a common memory region without involving the kernel for each data transfer. In this simulation:</p>
+      <ul>
+        <li>Process A writes data to the shared memory region</li>
+        <li>Process B reads data from the same memory region directly</li>
+        <li>The data is immediately available without any copying or kernel mediation</li>
+      </ul>
+    </div>
+
+    <!-- Memory visualization -->
+    <div class="mem-visual">
+      <div class="mem-proc mem-proc-a">
+        <span class="mem-proc-name">A</span>
+        <span class="mem-proc-sub">PROCESS A</span>
+      </div>
+      <div class="mem-connector">
+        <div class="mem-conn-line"></div>
+        <div class="mem-conn-arrow">⟶</div>
+      </div>
+      <div class="mem-region" id="memory-display">
+        <div class="mem-region-label">Shared Memory Region</div>
+        <div class="mem-region-data" id="mem-data-display">[ empty ]</div>
+      </div>
+      <div class="mem-connector">
+        <div class="mem-conn-line"></div>
+        <div class="mem-conn-arrow">⟶</div>
+      </div>
+      <div class="mem-proc mem-proc-b">
+        <span class="mem-proc-name">B</span>
+        <span class="mem-proc-sub">PROCESS B</span>
+      </div>
+    </div>
+
+    <!-- Process Panels -->
+    <div class="process-grid">
+      <div class="process-panel panel-a">
+        <h2>Process A</h2>
+        <input id="processAInput" type="text" placeholder="Enter data to write to shared memory…" />
+        <button class="btn-write" onclick="writeToSharedMemory('processAInput')">
+          ↑ Write to Shared Memory
+        </button>
+      </div>
+      <div class="process-panel panel-b">
+        <h2>Process B</h2>
+        <button class="btn-read" onclick="readFromSharedMemory()">
+          ↓ Read from Shared Memory
+        </button>
+        <div class="read-log" id="sharedMemoryLog">
+          <div style="text-align:center;padding:20px;font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:0.1em;">
+            NO READS YET
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-nav">
+      <a href="ipc.html">← Back to IPC</a>
+      <a href="mp.html">Message Passing Sim →</a>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-left">OS Explorer · Operating Systems Laboratory Project</div>
+    <div class="footer-right">
+      <a href="../index.html">Home</a>
+      <a href="../about.html">Team</a>
+    </div>
+  </footer>
+
+  <script>
+    const sharedMemory = { data: '' };
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function writeToSharedMemory(inputId) {
+      const input = document.getElementById(inputId);
+      const data = input.value.trim();
+      if (!data) { alert('Please enter some data to write to shared memory!'); return; }
+
+      sharedMemory.data = data;
+      input.value = '';
+
+      // Update memory display
+      const memDisplay = document.getElementById('memory-display');
+      document.getElementById('mem-data-display').textContent = `"${data}"`;
+      memDisplay.classList.add('flash');
+      setTimeout(() => memDisplay.classList.remove('flash'), 600);
+    }
+
+    function readFromSharedMemory() {
+      if (!sharedMemory.data) {
+        alert('No data in shared memory! Process A needs to write something first.');
+        return;
+      }
+
+      const log = document.getElementById('sharedMemoryLog');
+      // Remove placeholder
+      const empty = log.querySelector('div[style*="NO READS"]');
+      if (empty) empty.remove();
+
+      const entry = document.createElement('div');
+      entry.className = 'read-entry';
+      entry.innerHTML = `
+        <div class="read-entry-label">${new Date().toLocaleTimeString()} — DATA READ FROM SHARED REGION</div>
+        <div class="read-entry-data">${escapeHtml(sharedMemory.data)}</div>`;
+      log.prepend(entry);
+
+      // Flash the memory region green briefly
+      const memDisplay = document.getElementById('memory-display');
+      memDisplay.style.boxShadow = '0 0 20px rgba(104,211,145,0.4)';
+      memDisplay.style.borderColor = 'rgba(104,211,145,0.5)';
+      setTimeout(() => {
+        memDisplay.style.boxShadow = '';
+        memDisplay.style.borderColor = '';
+      }, 600);
+    }
+  </script>
+</body>
+</html>
