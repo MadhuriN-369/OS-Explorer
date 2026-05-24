@@ -108,7 +108,6 @@ index.html
 
 in your browser.
 
-You can also use the VS Code Live Server extension for a better development experience.
 ---
 
 ## Future Improvements
