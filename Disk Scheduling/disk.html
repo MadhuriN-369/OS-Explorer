@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disk Scheduling — OS Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./disk-style.css">
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="./disk.js" defer></script>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ── NAVBAR ── -->
+  <header class="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+          <line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/>
+        </svg>
+      </div>
+      <a href="../index.html" class="logo">OS <span>Explorer</span></a>
+    </div>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../about.html">Team</a>
+      <a href="#" class="active">Disk Scheduling</a>
+    </nav>
+  </header>
+
+  <!-- ── PAGE HEADER ── -->
+  <section class="page-header">
+    <div class="page-tag">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/>
+      </svg>
+      Module · Storage I/O
+    </div>
+    <h1>Disk <span>Scheduling</span></h1>
+    <p>
+      Disk scheduling is the technique used by operating systems to determine the
+      sequence in which block I/O operations are dispatched to storage volumes.
+      Also known as I/O scheduling, it orchestrates the order of disk operations
+      to optimize performance and resource utilization.
+    </p>
+  </section>
+
+  <!-- ── KEY TERMS ── -->
+  <section class="terms-section">
+    <h2 class="section-heading">Key <span>Terms</span></h2>
+    <p class="section-sub">// important concepts related to disk scheduling algorithms</p>
+
+    <div class="terms-grid">
+      <div class="term-card">
+        <div class="term-title">Seek Time</div>
+        <div class="term-body">The time taken by the disk arm to locate the required cylinder on disk. The algorithm minimising seek time is generally considered more efficient.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title">Rotational Latency</div>
+        <div class="term-body">Time for the required disk block to rotate under the read/write head. Minimising this contributes directly to lower access time.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title">Transfer Time</div>
+        <div class="term-body">Time taken to actually transfer data between the disk and main memory once the head is positioned correctly.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title">Disk Access Time</div>
+        <div class="term-body">Total time = Seek Time + Rotational Latency + Transfer Time. The primary metric used to compare scheduling algorithms.</div>
+      </div>
+      <div class="term-card">
+        <div class="term-title">Disk Response Time</div>
+        <div class="term-body">Average waiting time of all requests in the queue. Lower response time indicates a fairer, more responsive scheduling policy.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ALGORITHMS ── -->
+  <section class="algo-section">
+    <h2 class="section-heading">Scheduling <span>Algorithms</span></h2>
+    <p class="section-sub">// select an algorithm below and visualise its behaviour interactively</p>
+
+    <div class="algo-grid">
+      <a href="./algo-detail.html#fcfs" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">FCFS</span>
+          <span class="algo-badge">Basic</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">First Come First Serve</div>
+          <div class="algo-desc">Requests are served in the order they arrive. Simple to implement but does not optimise head movement, leading to high seek times under heavy load.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#sstf" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">SSTF</span>
+          <span class="algo-badge">Greedy</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Shortest Seek Time First</div>
+          <div class="algo-desc">Prioritises the request closest to the current head position. Reduces average seek time compared to FCFS but may cause starvation for far requests.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#scan" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">SCAN</span>
+          <span class="algo-badge">Sweep</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Elevator Algorithm</div>
+          <div class="algo-desc">The arm sweeps in one direction servicing all requests, then reverses. Behaviour mirrors an elevator — hence the nickname.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#cscan" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">C-SCAN</span>
+          <span class="algo-badge">Circular</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Circular SCAN</div>
+          <div class="algo-desc">Like SCAN, but after reaching the last cylinder the head jumps back to the first without servicing any requests, then sweeps again for uniform wait times.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#look" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">LOOK</span>
+          <span class="algo-badge">Optimised</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Modified SCAN</div>
+          <div class="algo-desc">Like SCAN but the arm reverses direction as soon as there are no more requests ahead, avoiding unnecessary travel to the disk edge.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#clook" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">C-LOOK</span>
+          <span class="algo-badge">Circular</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Circular LOOK</div>
+          <div class="algo-desc">The arm services requests outward until the highest request, then jumps to the lowest without servicing, combining LOOK efficiency with C-SCAN fairness.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#lifo" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">LIFO</span>
+          <span class="algo-badge">Stack</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Last In First Out</div>
+          <div class="algo-desc">The most recently arrived request is serviced first. Useful for certain cache-locality scenarios but can cause starvation of older requests.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+
+      <a href="./algo-detail.html#rss" class="algo-card">
+        <div class="algo-card-header">
+          <span class="algo-tag">RSS</span>
+          <span class="algo-badge">Stochastic</span>
+        </div>
+        <div class="algo-card-body">
+          <div class="algo-name">Random Seek Scheduling</div>
+          <div class="algo-desc">Picks the next request at random. Used in simulation and analysis to model stochastic environments and establish baseline comparisons.</div>
+          <div class="algo-learn">Learn more <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── SIMULATOR CONTROLS ── -->
+  <section class="controls-section">
+    <div class="controls-panel">
+      <div class="controls-panel-header">
+        <div class="controls-panel-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/>
+          </svg>
+        </div>
+        <div>
+          <div class="controls-panel-title">Simulator</div>
+          <div class="controls-panel-sub">// configure inputs and plot the disk head movement</div>
+        </div>
+      </div>
+
+      <div class="controls-body">
+        <div class="field-group">
+          <label for="algorithm">Algorithm</label>
+          <select id="algorithm">
+            <option id="o1" value="fcfs">FCFS — First Come First Serve</option>
+            <option id="o2" value="sstf">SSTF — Shortest Seek Time First</option>
+            <option id="o3" value="scan">SCAN — Elevator Algorithm</option>
+            <option id="o4" value="cscan">C-SCAN — Circular SCAN</option>
+            <option id="o5" value="look">LOOK — Modified SCAN</option>
+            <option id="o6" value="clook">C-LOOK — Circular LOOK</option>
+            <option id="o7" value="lifo">LIFO — Last In First Out</option>
+            <option id="o8" value="rss">RSS — Random Seek Scheduling</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="direction">Initial Direction</label>
+          <select id="direction">
+            <option value="left" selected>Left</option>
+            <option value="right">Right</option>
+          </select>
+        </div>
+
+        <div class="field-group">
+          <label for="bitstream-input">Cylinder Request Queue</label>
+          <input type="text" id="bitstream-input" placeholder="e.g. 98 183 37 122 14 124 65 67">
+        </div>
+
+        <div class="field-group">
+          <label for="initial-input">Initial Head Position</label>
+          <input type="text" id="initial-input" placeholder="e.g. 53">
+        </div>
+
+        <div class="field-group">
+          <label for="final-input">Total Cylinders (Max)</label>
+          <input type="text" id="final-input" placeholder="e.g. 199">
+        </div>
+      </div>
+
+      <div class="controls-footer">
+        <button class="btn-plot" id="plot-button" onclick="handlePlot()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+          </svg>
+          Plot Movement
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── RESULTS ── -->
+  <section class="results-section">
+    <div id="alg_name"></div>
+    <div id="alg_seek"></div>
+    <div id="graph_area"></div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <div class="footer-left">OS Explorer · Operating Systems Laboratory Project · Module by Vaibhavi Nagaraja Nayak — 231CS262</div>
+    <div class="footer-right">
+      <a href="../index.html">Home</a>
+      <a href="../about.html">Team</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
