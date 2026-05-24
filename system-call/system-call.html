@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Linux System Calls — OS Explorer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+  <style>
+    :root {
+      --bg:            #0d1017;
+      --bg2:           #111520;
+      --surface:       #161b27;
+      --border:        rgba(82, 170, 255, 0.18);
+      --border-bright: rgba(82, 170, 255, 0.45);
+      --accent:        #60b8ff;
+      --accent-dim:    rgba(96, 184, 255, 0.15);
+      --text:          #eef2f7;
+      --muted:         #8fa4bc;
+      --mono:  'IBM Plex Mono', monospace;
+      --sans:  'IBM Plex Sans', sans-serif;
+      --display: 'Bebas Neue', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: var(--mono); min-height: 100vh; overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(96,184,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96,184,255,0.06) 1px, transparent 1px);
+      background-size: 40px 40px; pointer-events: none; z-index: 0;
+    }
+
+    /* NAVBAR */
+    .navbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 24px 32px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: rgba(13,16,23,0.92);
+      backdrop-filter: blur(12px); z-index: 100;
+    }
+    .logo-wrap { display: flex; align-items: center; gap: 12px; }
+    .logo-icon {
+      width: 36px; height: 36px; border: 1.5px solid var(--accent);
+      border-radius: 6px; display: flex; align-items: center; justify-content: center;
+      color: var(--accent); background: var(--accent-dim);
+    }
+    .logo { font-family: var(--display); font-size: 24px; letter-spacing: 2px; color: var(--text); text-decoration: none; }
+    .logo span { color: var(--accent); }
+    nav { display: flex; align-items: center; gap: 8px; }
+    nav a {
+      color: var(--muted); text-decoration: none; font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 8px 16px; border: 1px solid transparent; border-radius: 4px; transition: all 0.2s;
+    }
+    nav a:hover { color: var(--accent); border-color: var(--border-bright); background: var(--accent-dim); }
+
+    /* PAGE HEADER */
+    .page-header {
+      padding: 60px 32px 40px; border-bottom: 1px solid var(--border);
+      margin-bottom: 48px; position: relative; z-index: 1;
+      animation: fadeUp 0.6s ease both;
+    }
+    .page-tag {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent-dim); border: 1px solid var(--border-bright);
+      border-radius: 4px; padding: 6px 14px; font-family: var(--mono);
+      font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 24px;
+    }
+    .page-header h1 {
+      font-family: var(--display); font-size: 72px;
+      letter-spacing: 4px; margin-bottom: 16px; line-height: 1;
+    }
+    .page-header h1 span { color: var(--accent); }
+    .page-header p { font-family: var(--sans); color: var(--muted); font-size: 14px; max-width: 600px; line-height: 1.8; }
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateY(16px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+
+    /* MAIN CONTENT */
+    main { max-width: 1100px; margin: 0 auto; padding: 0 32px 80px; position: relative; z-index: 1; }
+
+    section { margin-bottom: 56px; animation: fadeUp 0.5s ease both; }
+
+    h2 {
+      font-family: var(--display); font-size: 36px; letter-spacing: 2px;
+      color: var(--accent); margin-bottom: 20px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    h2 i { margin-right: 12px; font-size: 24px; }
+    h3 {
+      font-family: var(--display); font-size: 22px; letter-spacing: 1px;
+      color: var(--text); margin: 24px 0 12px;
+    }
+    p, li {
+      font-family: var(--sans); font-size: 14px; color: var(--muted);
+      line-height: 1.8; margin: 8px 0;
+    }
+    strong { color: var(--text); font-weight: 600; }
+    code {
+      font-family: var(--mono); font-size: 12px; color: var(--accent);
+      background: var(--accent-dim); padding: 2px 6px; border-radius: 3px;
+    }
+    ul, ol { padding-left: 20px; }
+    li { margin: 6px 0; }
+
+    /* INFO CARD */
+    .info-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent); border-radius: 8px;
+      padding: 24px; margin: 20px 0;
+    }
+    .info-card-title {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--display); font-size: 20px; letter-spacing: 1px;
+      color: var(--accent); margin-bottom: 12px;
+    }
+
+    /* NOTE / WARNING BOXES */
+    .note-box {
+      background: var(--accent-dim); border: 1px solid var(--border-bright);
+      border-left: 3px solid var(--accent); border-radius: 8px;
+      padding: 16px 20px; margin: 20px 0;
+      font-family: var(--sans); font-size: 13px; color: var(--muted);
+    }
+    .warning-box {
+      background: rgba(245,166,35,0.08); border: 1px solid rgba(245,166,35,0.3);
+      border-left: 3px solid #f5a623; border-radius: 8px;
+      padding: 16px 20px; margin: 20px 0;
+      font-family: var(--sans); font-size: 13px; color: var(--muted);
+    }
+
+    /* TABLE */
+    .table-container { overflow-x: auto; margin: 20px 0; }
+    table {
+      width: 100%; border-collapse: collapse;
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    th, td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); font-family: var(--sans); font-size: 13px; }
+    th { background: var(--surface); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    td { color: var(--muted); }
+    tr:hover td { background: var(--accent-dim); color: var(--text); }
+
+    /* CODE BOX */
+    .code-box { border-radius: 8px; margin: 20px 0; overflow: hidden; border: 1px solid var(--border); }
+    .code-header {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--surface); color: var(--muted);
+      padding: 10px 16px; font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.08em; border-bottom: 1px solid var(--border);
+    }
+    .code-header span { color: var(--accent); }
+    .code-content { padding: 0; overflow-x: auto; background: #1a1f2e; }
+    .code-content pre { margin: 0; }
+
+    /* ACCORDION */
+    .accordion {
+      cursor: pointer; width: 100%;
+      background: var(--bg2); border: 1px solid var(--border);
+      padding: 16px 20px; margin-bottom: 8px; text-align: left;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em;
+      color: var(--accent); border-radius: 6px; transition: all 0.2s;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .accordion:hover { border-color: var(--border-bright); background: var(--accent-dim); }
+    .accordion::after {
+      content: '\f078'; font-family: "Font Awesome 6 Free"; font-weight: 900;
+      color: var(--accent); transition: all 0.2s;
+    }
+    .accordion.active::after { transform: rotate(180deg); }
+    .panel {
+      max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-top: none; border-radius: 0 0 6px 6px; margin-bottom: 16px;
+    }
+    .panel-content { padding: 24px; }
+
+    /* SIMULATION */
+    #simulation-container {
+      position: relative; background: var(--bg2);
+      border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; margin: 24px 0; overflow: hidden; height: 500px;
+    }
+    .sim-zone {
+      position: absolute; border-radius: 8px; padding: 10px;
+    }
+    .sim-zone-label {
+      position: absolute; top: -14px; left: 16px;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.15em;
+      text-transform: uppercase; padding: 4px 12px; border-radius: 10px;
+    }
+    .sim-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px; position: relative;
+    }
+    .sim-box-title {
+      font-family: var(--display); font-size: 16px; letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+    .sim-box-sub {
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      letter-spacing: 0.08em; margin-bottom: 8px; padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sim-status { font-family: var(--sans); font-size: 12px; color: var(--muted); }
+
+    .method-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 24px; flex: 1; min-width: 240px;
+      transition: all 0.2s;
+    }
+    .method-card:hover { border-color: var(--border-bright); transform: translateY(-3px); }
+    .method-card h3 { color: var(--accent); margin-top: 0; }
+    .method-icon { font-size: 28px; color: var(--accent); margin-bottom: 12px; opacity: 0.8; }
+
+    /* QUIZ */
+    .quiz {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 32px; margin-top: 48px;
+    }
+    .quiz h2 { color: var(--text); border-bottom: 1px solid var(--border); }
+    .quiz-question { font-family: var(--sans); font-size: 16px; color: var(--text); margin-bottom: 16px; font-weight: 500; }
+    .quiz-options { display: grid; gap: 10px; margin-bottom: 16px; }
+    .quiz-option {
+      padding: 14px 18px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: 6px;
+      cursor: pointer; transition: all 0.2s;
+      font-family: var(--sans); font-size: 14px; color: var(--muted);
+    }
+    .quiz-option:hover { border-color: var(--border-bright); color: var(--text); background: var(--accent-dim); }
+    .option-selected { border-color: var(--accent); background: var(--accent-dim); color: var(--text); }
+    .option-correct { border-color: #48bb78; background: rgba(72,187,120,0.1); color: #68d391; }
+    .option-incorrect { border-color: #f56565; background: rgba(245,101,101,0.1); color: #fc8181; }
+    .result {
+      margin-top: 12px; padding: 12px 16px; border-radius: 6px;
+      font-family: var(--mono); font-size: 12px; display: none;
+    }
+    .result-correct { background: rgba(72,187,120,0.1); color: #68d391; border: 1px solid rgba(72,187,120,0.3); display: block; }
+    .result-incorrect { background: rgba(245,101,101,0.1); color: #fc8181; border: 1px solid rgba(245,101,101,0.3); display: block; }
+    .quiz-button {
+      margin-top: 12px; padding: 10px 24px;
+      background: var(--accent); color: var(--bg);
+      border: none; border-radius: 6px; font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+      cursor: pointer; transition: all 0.2s; font-weight: 700;
+    }
+    .quiz-button:hover { background: #80caff; transform: translateY(-2px); }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border); padding: 28px 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      position: relative; z-index: 1;
+    }
+    .footer-left { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+    .footer-right { display: flex; gap: 24px; }
+    .footer-right a { font-family: var(--mono); font-size: 11px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .footer-right a:hover { color: var(--accent); }
+
+    @media (max-width: 768px) {
+      .page-header h1 { font-size: 48px; }
+      main { padding: 0 16px 60px; }
+      .navbar { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <header class="navbar">
+    <div class="logo-wrap">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <a href="../index.html" class="logo">OS <span>EXPLORER</span></a>
+    </div>
+    <nav>
+      <a href="../index.html">Home</a>
+      <a href="../about.html">About</a>
+    </nav>
+  </header>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div class="page-tag">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Module 10 · Kernel
+    </div>
+    <h1>LINUX <span>SYSTEM CALLS</span></h1>
+    <p>Understanding the foundation of communication between user programs and the kernel — the controlled interface for accessing privileged resources.</p>
+  </div>
+
+  <main>
+    <section>
+      <h2><i class="fas fa-question-circle"></i> What are System Calls?</h2>
+      <p>System calls are the fundamental interface between an application and the Linux kernel. They provide a way for user-space programs to request services from the kernel, which has privileged access to hardware and other system resources that user programs cannot directly access.</p>
+      <div class="info-card">
+        <div class="info-card-title"><i class="fas fa-info-circle"></i> Why System Calls Matter</div>
+        <p>System calls form the essential bridge between user applications and the operating system kernel. Without them, programs would have no standardized way to perform crucial operations like reading files, creating processes, or communicating over networks.</p>
+      </div>
+      <h3>Key Characteristics</h3>
+      <ul>
+        <li><strong>Protection Boundary:</strong> System calls cross the protection boundary between user mode and kernel mode</li>
+        <li><strong>Controlled Interface:</strong> They provide a controlled interface for accessing privileged resources</li>
+        <li><strong>Abstraction:</strong> System calls abstract hardware details, making application development easier</li>
+        <li><strong>Standardization:</strong> They offer a standardized API regardless of underlying hardware</li>
+      </ul>
+      <h3>How System Calls Work</h3>
+      <ol>
+        <li>The application prepares arguments for the system call</li>
+        <li>The processor transfers control to a special address in the kernel</li>
+        <li>The CPU switches from user mode to kernel mode (increasing privilege level)</li>
+        <li>The kernel executes the requested operation</li>
+        <li>The CPU returns to user mode</li>
+        <li>Control is returned to the application, often with a return value</li>
+      </ol>
+      <div class="note-box"><strong>Note:</strong> In Linux, system calls are typically not invoked directly but through wrapper functions provided by the C library (glibc). These wrapper functions handle the details of how to transfer control to the kernel.</div>
+    </section>
+
+    <section>
+      <h2><i class="fas fa-list"></i> Categories of System Calls</h2>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr><th>Category</th><th>Description</th><th>Example System Calls</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Process Control</td><td>Creation, execution, and termination of processes</td><td><code>fork()</code>, <code>exec()</code>, <code>exit()</code>, <code>wait()</code></td></tr>
+            <tr><td>File Management</td><td>Creation, reading, writing, and manipulation of files</td><td><code>open()</code>, <code>read()</code>, <code>write()</code>, <code>close()</code></td></tr>
+            <tr><td>Directory Management</td><td>Creation and management of directories</td><td><code>mkdir()</code>, <code>rmdir()</code>, <code>chdir()</code></td></tr>
+            <tr><td>Information Management</td><td>Getting/setting various system information</td><td><code>getpid()</code>, <code>getuid()</code>, <code>time()</code></td></tr>
+            <tr><td>Inter-Process Communication</td><td>Communication between processes</td><td><code>pipe()</code>, <code>shmget()</code>, <code>socket()</code></td></tr>
+            <tr><td>Protection</td><td>Control of access to resources</td><td><code>chmod()</code>, <code>chown()</code>, <code>umask()</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2><i class="fas fa-code"></i> Common System Call Examples</h2>
+      <h3>File I/O System Calls</h3>
+      <div class="code-box">
+        <div class="code-header"><span>Basic File Operations Example</span><span style="color:var(--muted)">C</span></div>
+        <div class="code-content"><pre><code class="language-c">#include &lt;unistd.h&gt;
+#include &lt;fcntl.h&gt;
+#include &lt;stdio.h&gt;
+
+int main() {
+    int fd;
+    char buffer[100];
+    ssize_t bytes_read;
+    
+    fd = open("example.txt", O_RDONLY);
+    if (fd == -1) { perror("Error opening file"); return 1; }
+    
+    bytes_read = read(fd, buffer, sizeof(buffer) - 1);
+    if (bytes_read > 0) {
+        buffer[bytes_read] = '\0';
+        write(STDOUT_FILENO, "File contents: ", 15);
+        write(STDOUT_FILENO, buffer, bytes_read);
+    }
+    
+    close(fd);
+    return 0;
+}</code></pre></div>
+      </div>
+
+      <h3>Process Control System Calls</h3>
+      <div class="code-box">
+        <div class="code-header"><span>Process Creation Example</span><span style="color:var(--muted)">C</span></div>
+        <div class="code-content"><pre><code class="language-c">#include &lt;unistd.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+#include &lt;sys/wait.h&gt;
+
+int main() {
+    pid_t pid = fork();
+    
+    if (pid == -1) { perror("fork"); exit(EXIT_FAILURE); }
+    else if (pid == 0) {
+        printf("Child process with PID: %d\n", getpid());
+        execl("/bin/ls", "ls", "-la", NULL);
+        perror("execl"); exit(EXIT_FAILURE);
+    } else {
+        printf("Parent. Created child with PID: %d\n", pid);
+        int status;
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status))
+            printf("Child exited with status: %d\n", WEXITSTATUS(status));
+    }
+    return 0;
+}</code></pre></div>
+      </div>
+
+      <button class="accordion">More System Call Examples</button>
+      <div class="panel">
+        <div class="panel-content">
+          <h3>Memory Management</h3>
+          <div class="code-box">
+            <div class="code-header"><span>Memory Allocation via mmap</span><span style="color:var(--muted)">C</span></div>
+            <div class="code-content"><pre><code class="language-c">#include &lt;sys/mman.h&gt;
+#include &lt;string.h&gt;
+#include &lt;stdio.h&gt;
+#include &lt;stdlib.h&gt;
+
+int main() {
+    void* memory = mmap(NULL, 4096,
+                        PROT_READ | PROT_WRITE,
+                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (memory == MAP_FAILED) { perror("mmap"); exit(EXIT_FAILURE); }
+    
+    char* msg = (char*)memory;
+    strcpy(msg, "Hello, memory mapping!");
+    printf("%s\n", msg);
+    
+    munmap(memory, 4096);
+    return 0;
+}</code></pre></div>
+          </div>
+          <h3>Network Communication</h3>
+          <div class="code-box">
+            <div class="code-header"><span>Simple TCP Socket</span><span style="color:var(--muted)">C</span></div>
+            <div class="code-content"><pre><code class="language-c">#include &lt;sys/socket.h&gt;
+#include &lt;arpa/inet.h&gt;
+#include &lt;unistd.h&gt;
+
+int main() {
+    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(80);
+    inet_pton(AF_INET, "93.184.216.34", &server_addr.sin_addr);
+    connect(socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+    printf("Connected to server\n");
+    close(socket_fd);
+    return 0;
+}</code></pre></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2><i class="fas fa-book"></i> System Call Interface in Linux</h2>
+      <p>In Linux, system calls are implemented as software interrupts. When a program needs to make a system call, it triggers a software interrupt (traditionally via the <code>int 0x80</code> instruction, though modern systems use more efficient mechanisms like <code>sysenter</code>/<code>syscall</code>).</p>
+      <h3>System Call Numbers</h3>
+      <ul>
+        <li><code>read</code> → syscall number <strong>0</strong></li>
+        <li><code>write</code> → syscall number <strong>1</strong></li>
+        <li><code>open</code> → syscall number <strong>2</strong></li>
+      </ul>
+      <div class="warning-box"><strong>Important:</strong> System call numbers and their behavior can vary between different kernel versions and architectures. Always refer to the kernel documentation for your specific system.</div>
+      <h3>Using strace to Observe System Calls</h3>
+      <div class="code-box">
+        <div class="code-header"><span>strace Usage</span><span style="color:var(--muted)">bash</span></div>
+        <div class="code-content"><pre><code class="language-bash"># Trace system calls made by a command
+$ strace ls -la
+
+# Trace with timing information
+$ strace -tt ls -la
+
+# Trace only specific system calls
+$ strace -e open,read,write ls -la
+
+# Attach to a running process
+$ strace -p PID</code></pre></div>
+      </div>
+    </section>
+
+    <section>
+      <h2><i class="fas fa-laptop-code"></i> System Call Simulation</h2>
+      <p>This interactive visualization demonstrates how system calls cross the boundary between user space and kernel space.</p>
+
+      <div id="simulation-container">
+        <!-- User Space -->
+        <div style="position:absolute;top:20px;left:20px;width:calc(100% - 40px);height:190px;border:1px dashed var(--border-bright);border-radius:8px;background:rgba(96,184,255,0.04);">
+          <span style="position:absolute;top:-12px;left:16px;background:var(--accent);color:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:0.15em;padding:3px 12px;border-radius:4px;">USER SPACE</span>
+          
+          <div id="application" style="position:absolute;left:16px;top:20px;width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--display);font-size:16px;letter-spacing:1px;color:var(--accent);margin-bottom:6px;">APPLICATION</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">UNPRIVILEGED MODE</div>
+            <div id="app-status" style="font-family:var(--sans);font-size:12px;color:var(--muted);">Idle</div>
+            <button id="trigger-syscall" class="quiz-button" style="margin-top:10px;padding:6px 12px;font-size:10px;width:100%;">Make System Call</button>
+          </div>
+
+          <div id="c-library" style="position:absolute;left:240px;top:20px;width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--display);font-size:16px;letter-spacing:1px;color:var(--accent);margin-bottom:6px;">C LIBRARY (GLIBC)</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">SYSCALL WRAPPER</div>
+            <div id="libc-status" style="font-family:var(--sans);font-size:12px;color:var(--muted);">Idle</div>
+          </div>
+        </div>
+
+        <!-- Mode Boundary -->
+        <div style="position:absolute;top:218px;left:20px;width:calc(100% - 40px);height:1px;background:rgba(255,255,255,0.15);">
+          <span style="position:absolute;left:50%;transform:translateX(-50%);top:-10px;background:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--muted);padding:0 10px;">── MODE BOUNDARY ──</span>
+        </div>
+
+        <!-- Message ball -->
+        <div id="syscall-message" style="position:absolute;top:218px;left:200px;width:24px;height:24px;background:var(--accent);border-radius:50%;opacity:0;transition:all 0.5s ease;z-index:10;display:flex;align-items:center;justify-content:center;">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#0d1017" stroke-width="3"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/></svg>
+        </div>
+
+        <!-- Kernel Space -->
+        <div style="position:absolute;top:230px;left:20px;width:calc(100% - 40px);height:190px;border:1px dashed rgba(245,166,35,0.3);border-radius:8px;background:rgba(245,166,35,0.03);">
+          <span style="position:absolute;top:-12px;left:16px;background:#f5a623;color:var(--bg);font-family:var(--mono);font-size:10px;letter-spacing:0.15em;padding:3px 12px;border-radius:4px;">KERNEL SPACE</span>
+
+          <div id="syscall-handler" style="position:absolute;left:16px;top:20px;width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--display);font-size:16px;letter-spacing:1px;color:#f5a623;margin-bottom:6px;">SYSCALL HANDLER</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">PRIVILEGED MODE</div>
+            <div id="handler-status" style="font-family:var(--sans);font-size:12px;color:var(--muted);">Idle</div>
+          </div>
+
+          <div id="kernel-service" style="position:absolute;left:240px;top:20px;width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+            <div style="font-family:var(--display);font-size:16px;letter-spacing:1px;color:#f5a623;margin-bottom:6px;">KERNEL SERVICE</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border);">RESOURCE ACCESS</div>
+            <div id="service-status" style="font-family:var(--sans);font-size:12px;color:var(--muted);">Idle</div>
+          </div>
+        </div>
+
+        <!-- Info bar -->
+        <div style="position:absolute;bottom:16px;left:20px;right:20px;">
+          <div id="syscall-info" style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:8px;text-align:center;"></div>
+          <div style="width:100%;height:3px;background:var(--surface);border-radius:3px;overflow:hidden;">
+            <div id="progress-bar" style="width:0%;height:100%;background:var(--accent);transition:width 0.3s linear;border-radius:3px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:16px;margin:20px 0;">
+        <div class="method-card">
+          <div class="method-icon"><i class="fas fa-file"></i></div>
+          <h3>File System Call</h3>
+          <p>Simulate a file operation like <code>open()</code>, <code>read()</code>, or <code>write()</code>.</p>
+          <button class="quiz-button" onclick="startSimulation('file')" style="margin-top:12px;">Simulate open()</button>
+        </div>
+        <div class="method-card">
+          <div class="method-icon"><i class="fas fa-network-wired"></i></div>
+          <h3>Network System Call</h3>
+          <p>Simulate a network operation like <code>socket()</code> or <code>connect()</code>.</p>
+          <button class="quiz-button" onclick="startSimulation('network')" style="margin-top:12px;">Simulate socket()</button>
+        </div>
+        <div class="method-card">
+          <div class="method-icon"><i class="fas fa-tasks"></i></div>
+          <h3>Process System Call</h3>
+          <p>Simulate a process management call like <code>fork()</code> or <code>exec()</code>.</p>
+          <button class="quiz-button" onclick="startSimulation('process')" style="margin-top:12px;">Simulate fork()</button>
+        </div>
+      </div>
+
+      <div class="note-box">
+        <strong>How System Calls Work:</strong>
+        <ol style="margin-top:8px;">
+          <li>Application code calls a C library function</li>
+          <li>The library prepares arguments and invokes the actual system call</li>
+          <li>CPU switches from user mode to kernel mode</li>
+          <li>The kernel's system call handler processes the request</li>
+          <li>Kernel services perform the requested operation with privileged access</li>
+          <li>Results are returned back to user space</li>
+          <li>CPU switches back to user mode</li>
+        </ol>
+      </div>
+
+      <script>
+        const systemCalls = {
+          file: { name:'open()', description:'Opens a file and returns a file descriptor', appRequest:'Opening "example.txt"...', libcPrepare:'Preparing syscall open(2)', handlerAction:'Processing file open request', serviceAction:'Accessing filesystem, checking permissions', returnValue:'fd = 3' },
+          network: { name:'socket()', description:'Creates a network socket endpoint', appRequest:'Creating a TCP socket...', libcPrepare:'Preparing syscall socket(41)', handlerAction:'Processing socket creation request', serviceAction:'Setting up network endpoint', returnValue:'socket_fd = 4' },
+          process: { name:'fork()', description:'Creates a new child process', appRequest:'Creating a new process...', libcPrepare:'Preparing syscall fork(57)', handlerAction:'Processing process creation request', serviceAction:'Duplicating process address space', returnValue:'pid = 1234' }
+        };
+        const appStatus = document.getElementById('app-status');
+        const libcStatus = document.getElementById('libc-status');
+        const handlerStatus = document.getElementById('handler-status');
+        const serviceStatus = document.getElementById('service-status');
+        const syscallMessage = document.getElementById('syscall-message');
+        const syscallInfo = document.getElementById('syscall-info');
+        const progressBar = document.getElementById('progress-bar');
+        const application = document.getElementById('application');
+        const cLibrary = document.getElementById('c-library');
+        const syscallHandler = document.getElementById('syscall-handler');
+        const kernelService = document.getElementById('kernel-service');
+        let animationInProgress = false;
+
+        function startSimulation(type) {
+          if (animationInProgress) return;
+          animationInProgress = true;
+          const sc = systemCalls[type];
+          syscallInfo.textContent = `${sc.name} — ${sc.description}`;
+          resetStates();
+          setTimeout(() => highlight(application, appStatus, sc.appRequest), 0);
+          setTimeout(() => highlight(cLibrary, libcStatus, sc.libcPrepare), 1000);
+          setTimeout(() => { syscallMessage.style.opacity='1'; updateProgress(30); }, 2000);
+          setTimeout(() => { syscallMessage.style.top='250px'; }, 2500);
+          setTimeout(() => highlight(syscallHandler, handlerStatus, sc.handlerAction), 3000);
+          setTimeout(() => highlight(kernelService, serviceStatus, sc.serviceAction), 4000);
+          setTimeout(() => { serviceStatus.textContent=`Returning: ${sc.returnValue}`; updateProgress(60); }, 5000);
+          setTimeout(() => { handlerStatus.textContent='Passing result to user space'; updateProgress(70); }, 6000);
+          setTimeout(() => { syscallMessage.style.top='218px'; updateProgress(80); }, 6500);
+          setTimeout(() => { syscallMessage.style.top='180px'; }, 7000);
+          setTimeout(() => { libcStatus.textContent=`Received ${sc.returnValue}`; syscallMessage.style.opacity='0'; updateProgress(90); }, 7500);
+          setTimeout(() => { appStatus.textContent=`Complete: ${sc.returnValue}`; updateProgress(100); }, 8000);
+          setTimeout(() => { animationInProgress=false; updateProgress(0); syscallInfo.textContent=''; }, 9000);
+        }
+
+        function highlight(el, statusEl, text) {
+          el.style.border='1px solid var(--accent)';
+          el.style.boxShadow='0 0 16px rgba(96,184,255,0.3)';
+          statusEl.textContent = text;
+          setTimeout(() => { el.style.border='1px solid var(--border)'; el.style.boxShadow='none'; }, 900);
+        }
+
+        function resetStates() {
+          appStatus.textContent = libcStatus.textContent = handlerStatus.textContent = serviceStatus.textContent = 'Idle';
+          syscallMessage.style.opacity='0'; syscallMessage.style.top='218px';
+          updateProgress(0);
+        }
+
+        function updateProgress(p) { progressBar.style.width = p + '%'; }
+        document.getElementById('trigger-syscall').addEventListener('click', () => startSimulation('file'));
+      </script>
+    </section>
+
+    <section class="quiz">
+      <h2>System Calls Quiz</h2>
+      <div id="quiz-container">
+        <div class="quiz-question">Which system call is used to create a new process in Linux?</div>
+        <div class="quiz-options">
+          <div class="quiz-option" onclick="selectOption(0)">A. create()</div>
+          <div class="quiz-option" onclick="selectOption(1)">B. fork()</div>
+          <div class="quiz-option" onclick="selectOption(2)">C. exec()</div>
+          <div class="quiz-option" onclick="selectOption(3)">D. spawn()</div>
+        </div>
+        <div id="result" class="result"></div>
+        <button id="submit-btn" class="quiz-button" onclick="checkAnswer()">Submit Answer</button>
+        <button id="next-question-btn" class="quiz-button" onclick="nextQuestion()" style="display:none;margin-left:8px;">Next Question</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-left">OS Explorer · Operating Systems Laboratory Project</div>
+    <div class="footer-right">
+      <a href="../index.html">Home</a>
+      <a href="../about.html">Team</a>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => { hljs.highlightAll(); });
+    document.querySelectorAll('.accordion').forEach(acc => {
+      acc.addEventListener('click', function() {
+        this.classList.toggle('active');
+        const panel = this.nextElementSibling;
+        panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + 'px';
+      });
+    });
+
+    let currentQuestion = 0;
+    const questions = [
+      { question:"Which system call is used to create a new process in Linux?", options:["create()","fork()","exec()","spawn()"], correctAnswer:1 },
+      { question:"Which system call is used to open a file in Linux?", options:["read()","open()","create()","write()"], correctAnswer:1 },
+      { question:"What's the main purpose of the 'exec' family of system calls?", options:["Create new processes","Replace the current process with a new program","Communicate between processes","Allocate memory"], correctAnswer:1 }
+    ];
+    let selectedOption = -1;
+
+    function loadQuestion(index) {
+      selectedOption = -1;
+      const q = document.querySelector('.quiz-question');
+      const opts = document.querySelectorAll('.quiz-option');
+      q.textContent = questions[index].question;
+      opts.forEach((o, i) => { o.textContent = `${String.fromCharCode(65+i)}. ${questions[index].options[i]}`; o.className = 'quiz-option'; });
+      document.getElementById('result').className = 'result';
+      document.getElementById('result').textContent = '';
+      document.getElementById('result').style.display = 'none';
+      document.getElementById('submit-btn').style.display = 'block';
+      document.getElementById('next-question-btn').style.display = 'none';
+    }
+
+    function selectOption(i) {
+      document.querySelectorAll('.quiz-option').forEach(o => o.classList.remove('option-selected'));
+      document.querySelectorAll('.quiz-option')[i].classList.add('option-selected');
+      selectedOption = i;
+    }
+
+    function checkAnswer() {
+      if (selectedOption === -1) { alert('Please select an answer first!'); return; }
+      const opts = document.querySelectorAll('.quiz-option');
+      const correct = questions[currentQuestion].correctAnswer;
+      const result = document.getElementById('result');
+      if (selectedOption === correct) {
+        result.textContent = '✓ Correct! Well done!';
+        result.className = 'result result-correct';
+        opts[selectedOption].classList.add('option-correct');
+      } else {
+        result.textContent = `✗ Incorrect! The correct answer is ${String.fromCharCode(65+correct)}.`;
+        result.className = 'result result-incorrect';
+        opts[selectedOption].classList.add('option-incorrect');
+        opts[correct].classList.add('option-correct');
+      }
+      result.style.display = 'block';
+      document.getElementById('submit-btn').style.display = 'none';
+      if (currentQuestion < questions.length - 1) document.getElementById('next-question-btn').style.display = 'inline-block';
+    }
+
+    function nextQuestion() {
+      currentQuestion++;
+      if (currentQuestion < questions.length) loadQuestion(currentQuestion);
+    }
+
+    loadQuestion(0);
+  </script>
+</body>
+</html>
