@@ -5,7 +5,9 @@ OS-Explorer is an interactive operating systems simulation platform designed to 
 The project provides a hands-on learning environment for understanding process scheduling, memory management, deadlocks, paging, synchronization, file systems, disk scheduling, interrupts, and other fundamental operating system concepts.
 
 ---
-
+## Live Demo
+https://nehak-xp.github.io/OS_Explorer_Website/
+---
 ## Features
 
 ### CPU Scheduling
